@@ -1,0 +1,31 @@
+# ---------------------------------------------------------
+# 本项目专属扩展环境依赖 (OmAgent + RAG-Anything 增强包)
+# ---------------------------------------------------------
+
+# --- 基础架构与配置 ---
+python-dotenv
+pydantic>=2.0.0
+pydantic-settings
+pydub
+numexpr
+
+# --- 向量数据库 (工业级本地引擎) ---
+faiss-cpu
+qdrant-client
+
+# --- 前端交互与图谱可视化 ---
+gradio>=4.0.0
+networkx
+pyvis
+
+# --- 多模态解析与 OCR (MinerU 核心依赖) ---
+magic-pdf[full]>=0.6.0
+pdfminer.six
+opencv-python
+pillow
+
+# --- 大模型调用与网络通信 ---
+openai
+aiohttp
+httpx
+geocoder
