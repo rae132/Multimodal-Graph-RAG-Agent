@@ -52,16 +52,14 @@ pip install -r requirements.txt
 ```
 
 ### 2. 配置 API Key
-在 `omagent/examples/rag_multimodal_agent/` 目录下创建 `.env` 文件。借助 Litellm，您可以自由组合模型（例如用 Qwen 聊天，用 DeepSeek 抽取）：
-```ini
-CHAT_MODEL_ID=openai/qwen-plus
-CHAT_API_KEY=your_dashscope_key
-CHAT_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
+支持使用 `.env` 文件或在终端 `export` 环境变量。您可以参考 `omagent/examples/rag_multimodal_agent/.env.example` 进行配置。
 
-EMBED_MODEL_ID=openai/text-embedding-v3
-EMBED_API_KEY=your_dashscope_key
-EMBED_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
-EMBED_DIM=0  # 设置为 0 即开启自适应维度探测
+借助 Litellm，您可以自由组合模型（例如用 Qwen 聊天，用 DeepSeek 抽取）：
+```bash
+# 示例：直接在终端 export (或写入 .env 文件)
+export CHAT_MODEL_ID=openai/qwen-plus
+export CHAT_API_KEY=your_dashscope_key
+export EMBED_DIM=0  # 开启自适应维度探测
 ```
 
 ### 3. 启动项目

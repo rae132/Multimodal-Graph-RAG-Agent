@@ -46,9 +46,32 @@ pip install -e .
 
 ---
 
-## 3. 系统配置 (使用 .env 文件)
+## 3. 系统配置
 
-系统的灵魂在于配置的解耦。请在 `omagent/examples/rag_multimodal_agent/.env` 目录下创建或修改该文件，现在您可以为不同任务自由组合模型（以下为组合搭配示例）：
+本项目的配置支持两种方式：**使用 `.env` 文件**（推荐）或 **在终端直接 `export` 环境变量**。
+
+### 方式 A：使用 `.env` 文件（推荐）
+在 `omagent/examples/rag_multimodal_agent/` 目录下，系统会自动读取 `.env` 文件。您可以参考同目录下的 `.env.example` 进行配置：
+
+```bash
+cd omagent/examples/rag_multimodal_agent
+cp .env.example .env
+# 然后使用编辑器修改 .env 填入您的 API Key
+```
+
+### 方式 B：使用终端 `export` 命令
+如果您不想创建文件，也可以在启动程序前直接在终端执行：
+
+```bash
+export CHAT_API_KEY=您的_API_KEY
+export CHAT_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
+export CHAT_MODEL_ID=openai/qwen-plus
+# ... 其他变量同理
+```
+
+---
+
+### 配置项详细说明：
 
 ```ini
 # ==========================================
@@ -56,24 +79,23 @@ pip install -e .
 # ==========================================
 
 # 1. 主聊天与推理模型 (必填)
-CHAT_API_KEY=sk-your-api-key
+CHAT_API_KEY=您的_API_KEY
 CHAT_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
-CHAT_MODEL_ID=openai/qwen-plus  # 注意：必须带有对应的厂商前缀 (如 openai/, anthropic/ 等)
+CHAT_MODEL_ID=openai/qwen-plus  # 必须带有对应的厂商前缀 (如 openai/, anthropic/ 等)
 
 # 2. 知识图谱抽取模型 (选填)
 # 如果不填，默认使用 CHAT_MODEL_ID。推荐使用专门的语言模型降低建库成本。
 # EXTRACT_MODEL_ID=openai/deepseek-chat
 
 # 3. 多模态视觉模型 (选填)
-# 用于支持图片理解
 VISION_MODEL_ID=openai/qwen-vl-plus
 
 # 4. 嵌入模型与维度 (必填)
 # ⚠️ 注意：更换嵌入模型后，必须删除 rag_storage 目录重新构建索引！
-EMBED_API_KEY=sk-your-api-key
+EMBED_API_KEY=您的_API_KEY
 EMBED_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 EMBED_MODEL_ID=openai/text-embedding-v3
-# 设置为 0 开启自动探测维度。如果探测失败或网络受限，可手动填写固定值 (如 1024 或 3072)
+# 设置为 0 开启自动探测维度。如果探测失败，可手动填写固定值 (如 1024 或 3072)
 EMBED_DIM=0
 
 # --- RAG & OmAgent 运行配置 ---
@@ -83,7 +105,7 @@ PARSE_METHOD=auto
 OMAGENT_MODE=lite
 
 # --- 用户对话模型 ID 设置 (映射到 gpt.yml) ---
-custom_openai_key=sk-your-api-key
+custom_openai_key=您的_API_KEY
 custom_openai_endpoint=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 
