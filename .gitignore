@@ -9,6 +9,7 @@ venv/
 # 系统配置（含 API Key，绝对不能传！）
 .env
 .env.*
+!.env.example
 
 # 数据存储（属于您的私人知识库，不建议传）
 rag_storage/
