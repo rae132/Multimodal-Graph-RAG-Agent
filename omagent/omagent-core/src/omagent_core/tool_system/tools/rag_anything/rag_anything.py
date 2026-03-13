@@ -177,12 +177,43 @@ class RAGAnythingTool(BaseTool):
             func=embed_func
         )
 
+        # --- Rerank 配置 (可选，默认关闭) ---
+        rerank_model_func = None
+        if os.environ.get("ENABLE_RERANK", "false").lower() == "true":
+            rerank_provider = os.environ.get("RERANK_PROVIDER", "aliyun").lower()
+            rerank_model = os.environ.get("RERANK_MODEL_ID")
+            rerank_api_key = os.environ.get("RERANK_API_KEY")
+            rerank_api_base = os.environ.get("RERANK_API_BASE")
+            
+            # 自动补全默认的 Base URL，防止报错 "Base URL is required"
+            if not rerank_api_base:
+                if rerank_provider == "aliyun":
+                    rerank_api_base = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+                elif rerank_provider == "jina":
+                    rerank_api_base = "https://api.jina.ai/v1/rerank"
+                elif rerank_provider == "cohere":
+                    rerank_api_base = "https://api.cohere.com/v2/rerank"
+
+            from lightrag.rerank import cohere_rerank, jina_rerank, ali_rerank
+            
+            async def custom_rerank_func(query: str, documents: List[str], top_n: int = 5, **kwargs) -> List[float]:
+                if rerank_provider == "cohere":
+                    return await cohere_rerank(query, documents, api_key=rerank_api_key, model=rerank_model, base_url=rerank_api_base, top_n=top_n)
+                elif rerank_provider == "jina":
+                    return await jina_rerank(query, documents, api_key=rerank_api_key, model=rerank_model, base_url=rerank_api_base, top_n=top_n)
+                else: # Default to aliyun
+                    return await ali_rerank(query, documents, api_key=rerank_api_key, model=rerank_model, base_url=rerank_api_base, top_n=top_n)
+            
+            rerank_model_func = custom_rerank_func
+            std_logging.info(f"Rerank enabled using provider: {rerank_provider}")
+
         lrag = LightRAG(
             working_dir=self._working_dir,
             llm_model_func=llm_func,
             embedding_func=embedding_obj,
             llm_model_name=chat_model,
-            vector_storage="FaissVectorDBStorage"
+            vector_storage="FaissVectorDBStorage",
+            rerank_model_func=rerank_model_func
         )
 
         config = RAGAnythingConfig(
