@@ -74,7 +74,7 @@ python run_webpage.py
 
 | 💬 智能问答 | 📚 知识库管理 | 🕸️ 知识图谱展示 |
 | :---: | :---: | :---: |
-| ![](/doc/Images/效果图1.png) | ![](/doc/Images/效果图2.png) | ![](/doc/Images/知识图谱.png) |
+| ![](doc/Images/效果图1.png) | ![](doc/Images/效果图2.png) | ![](doc/Images/知识图谱.png) |
 
 ---
 
