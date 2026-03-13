@@ -279,6 +279,7 @@ class RAGAnythingTool(BaseTool):
                 return f"Error: File path '{file_path}' does not exist."
             try:
                 await rag.process_document_complete(file_path)
+                await rag.finalize_storages()
                 return f"Successfully uploaded and processed: {file_path}"
             except Exception as e:
                 logger.error(f"RAG upload error: {e}")
@@ -291,9 +292,13 @@ class RAGAnythingTool(BaseTool):
                 if image_paths and len(image_paths) > 0:
                     multimodal_content = [{"type": "image", "img_path": img} for img in image_paths if os.path.exists(img)]
                     if multimodal_content:
-                        return await rag.aquery_with_multimodal(query, multimodal_content, mode=mode, only_need_context=True)
+                        res = await rag.aquery_with_multimodal(query, multimodal_content, mode=mode, only_need_context=True)
+                        await rag.finalize_storages()
+                        return res
                 
-                return await rag.aquery(query, mode=mode, only_need_context=True)
+                res = await rag.aquery(query, mode=mode, only_need_context=True)
+                await rag.finalize_storages()
+                return res
             except Exception as e:
                 logger.error(f"RAG query error: {e}")
                 return f"Error during query: {str(e)}"

@@ -10,6 +10,7 @@ venv/
 .env
 .env.*
 !.env.example
+!omagent/.env.example
 
 # 数据存储（属于您的私人知识库，不建议传）
 rag_storage/

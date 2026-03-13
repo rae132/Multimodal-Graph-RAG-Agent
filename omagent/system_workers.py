@@ -3,6 +3,7 @@ from omagent_core.utils.registry import registry
 from omagent_core.utils.general import read_image
 from omagent_core.utils.logger import logging
 import os
+from typing import Any
 
 @registry.register_worker()
 class InputInterface(BaseWorker):
@@ -95,12 +96,31 @@ class SystemInputWorker(BaseWorker):
             "image_paths": image_paths
         }
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return False
+    return str(v).lower() in ("yes", "true", "t", "1", "y")
+
 @registry.register_worker()
 class RAGRetrievalWorker(BaseWorker):
-    def _run(self, query: str = None, image_paths: list = None, rag_enabled: bool = True, action: str = "query", file_path: str = None, **kwargs):
-        if action == "query" and not rag_enabled:
+    def _run(self, query: str = None, image_paths: list = None, rag_enabled: Any = True, action: str = "query", file_path: str = None, **kwargs):
+        # 强制转换并记录日志
+        is_rag_active = str2bool(rag_enabled)
+        # 容错处理：如果 action 为 None，默认为 query
+        current_action = action or "query"
+        
+        logging.info(f"RAGRetrievalWorker: action={current_action}, rag_enabled_raw={rag_enabled}, processed={is_rag_active}")
+            
+        if current_action == "query" and not is_rag_active:
+            logging.info("RAG is disabled, skipping retrieval.")
             return {"result": ""}
         
+        # 如果不是 upload 且 RAG 关闭，也跳过
+        if current_action != "upload" and not is_rag_active:
+            return {"result": ""}
+
         from omagent_core.tool_system.tools.rag_anything.rag_anything import RAGAnythingTool
         try:
             rag_tool = RAGAnythingTool()
@@ -117,9 +137,12 @@ class RAGRetrievalWorker(BaseWorker):
 
 @registry.register_worker()
 class RAGContextWorker(BaseWorker):
-    def _run(self, query: str, rag_res: str = "", rag_enabled: bool = False, *args, **kwargs):
-        if not rag_enabled or not rag_res:
+    def _run(self, query: str, rag_res: str = "", rag_enabled: Any = False, *args, **kwargs):
+        is_rag_active = str2bool(rag_enabled)
+        logging.info(f"RAGContextWorker: rag_enabled_raw={rag_enabled}, processed={is_rag_active}, has_res={bool(rag_res)}")
+            
+        if not is_rag_active or not rag_res or str(rag_res).strip() == "":
             return {"final_query": query}
         
-        final_query = f"Background Context from RAG:\n{rag_res}\n\nUser Question: {query}"
+        final_query = f"从知识库检索到的背景知识：\n{rag_res}\n\n用户问题：{query}\n请务必根据上述背景知识，使用简体中文回答用户问题。"
         return {"final_query": final_query}

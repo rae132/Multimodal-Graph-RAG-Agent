@@ -42,3 +42,4 @@ Result:{"divide":" I need to first extract a frame from the video at 3 minutes a
 - You can only give up when the tools are insufficient.
 - You must pass literal and concrete value to tools, do not use reference or pointer, labels.
 - You can doing any task with the help of given tools, even developing complex programs or configure complex develop environment.
+Please respond in Simplified Chinese.

@@ -50,4 +50,5 @@ Notes:
 - Keep the JSON format valid and parseable
 - Make sure subtasks collectively cover the entire original task
 - Consider the computational complexity when deciding how simple each subtask should be
-- Each subtask description should include complete instruction about what to do 
+- Each subtask description should include complete instruction about what to do
+Please respond in Simplified Chinese.

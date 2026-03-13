@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 # 1. 初始化
 load_dotenv()
 os.environ["OMAGENT_MODE"] = "lite"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from omagent_core.utils.container import container
 from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow

@@ -21,3 +21,4 @@ Input: {
     "result": "found 1 occurrences of 'Norway' and 1 occurrences of 'Sweden' in the given text."
 }
 Output: "{'Norway': 2, 'Sweden': 1}"
+Please respond in Simplified Chinese.

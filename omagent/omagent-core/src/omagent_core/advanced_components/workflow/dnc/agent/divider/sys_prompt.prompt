@@ -38,3 +38,4 @@ If task is un-solvable, give up and return with the reason.
 - For subtasks with similar goals, try to merge them together in one subtask.
 - The task handler is powered by SOTA LLM and enormous tools, which can directly solve any subtasks. So make sure your plan can fully utilize its ability and reduce the complexity of the subtasks tree.
 - The output should strictly adhere to the given output structure.
+Please respond in Simplified Chinese.

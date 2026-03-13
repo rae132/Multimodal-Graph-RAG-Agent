@@ -1,4 +1,3 @@
-
 import math
 import numpy as np
 import statistics
@@ -8,3 +7,4 @@ import statistics
 def solver():
     # Let's write a Python program step by step, and then return the answer
     # Firstly, we need define the following variable:
+Please respond in Simplified Chinese.

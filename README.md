@@ -15,17 +15,17 @@
 ## 🌟 核心特性
 
 - **🚀 多模型智能路由 (Powered by Litellm)**：
-  - 彻底解除平台绑定，**聊天、图谱抽取、视觉解析、向量嵌入**四大任务均可独立配置不同厂商的模型（OpenAI/Claude/DeepSeek/Qwen/本地模型等），实现成本与性能的极致平衡。
+  - 彻底解除平台绑定，**聊天、图谱抽取、视觉解析、向量嵌入、重排序**五大任务均可独立配置不同厂商的模型（OpenAI/Claude/DeepSeek/Qwen/本地模型等），实现成本与性能的极致平衡。
 - **🔍 双引擎混合检索 (`Mix` Mode)**：
-  - **Graph RAG**: 基于实体关系网的深层逻辑推理.
+  - **Graph RAG**: 基于实体关系网的深层逻辑推理。
   - **Vector RAG**: 基于 FAISS 的高精度语义匹配，且**支持启动时自动探测 Embedding 维度**。
 - **📸 真正多模态交互**：
-  - 支持上传截图提问，自动识别图中 Logo、趋势及含义并结合图谱库回答。
+  - 支持上传截图提问，自动识别图中内容并结合图谱库回答。
 - **📊 交互式知识图谱可视化**：
-  - 内置基于 `vis-network` 的动态 3D 渲染界面，实时展示知识间的拓扑关联。
+  - 内置基于 `vis-network` 的动态渲染界面，实时展示知识间的拓扑关联。
 - **⚡ 极致工程优化**：
   - **全异步流水线**: 彻底解决 Python 异步死锁导致的 UI 挂起。
-  - **轻量级运行**: 无需复杂服务器，单机环境 + `lite` 模式即可跑通全流程。
+  - **多样化引擎**: 内置 CoT, ToT, ReAct, Reflexion 等多种推理策略。
 
 ---
 
@@ -49,24 +49,28 @@
 conda create -n multi-agent python=3.11 -y
 conda activate multi-agent
 pip install -r requirements.txt
+
+# 以编辑模式安装核心组件
+cd omagent/omagent-core && pip install -e .
+cd ../../rag-anything && pip install -e .
 ```
 
 ### 2. 配置 API Key
-支持使用 `.env` 文件或在终端 `export` 环境变量。您可以参考 `omagent/examples/rag_multimodal_agent/.env.example` 进行配置。
-
-借助 Litellm，您可以自由组合模型（例如用 Qwen 聊天，用 DeepSeek 抽取）：
-```bash
-# 示例：直接在终端 export (或写入 .env 文件)
-export CHAT_MODEL_ID=openai/qwen-plus
-export CHAT_API_KEY=your_dashscope_key
-export EMBED_DIM=0  # 开启自适应维度探测
-```
+1. 进入 `omagent/` 目录。
+2. 复制模板：`cp .env.example .env`。
+3. 修改 `.env` 填入您的 API Key 和模型配置。
 
 ### 3. 启动项目
-```bash
-cd omagent/examples/rag_multimodal_agent
-python run_webpage.py
-```
+- **Web 界面（推荐）**:
+  ```bash
+  cd omagent
+  python run_webpage.py
+  ```
+- **命令行界面**:
+  ```bash
+  cd omagent
+  python start_system_cli.py
+  ```
 
 ---
 
@@ -79,7 +83,7 @@ python run_webpage.py
 ---
 
 ## 🧗‍♂️ 项目难点与攻克记录
-在整合 OmAgent、LightRAG 与 Litellm 的过程中，我们解决了包括 **Python 异步锁跨线程死锁**、**动态 Embedding 维度探测**、**API 兼容性清洗** 等多个隐蔽的底层架构冲突。
+在整合过程中，我们解决了 **Python 异步锁跨线程死锁**、**动态 Embedding 维度探测**、**API 兼容性清洗**、**中文回复强制引导**等多个底层架构冲突。
 
 ---
 
@@ -89,7 +93,7 @@ python run_webpage.py
 - [OmAgent](https://github.com/omagent-io/omagent): 灵活的多模态智能体框架。
 - [RAG-Anything](https://github.com/Bob-Zheng/rag-anything): 全能多模态 RAG 工具。
 - [LightRAG](https://github.com/HKU-Smart-AILab/LightRAG): 极致的图谱 RAG 算法。
-- [Litellm](https://github.com/BerriAI/litellm): 调用所有 LLM API 的统一网关。
+- [Litellm](https://github.com/BerriAI/litellm): 统一模型调用网关。
 
 ---
 <p align="center">Made with ❤️ for Multimodal AI Enthusiasts</p>

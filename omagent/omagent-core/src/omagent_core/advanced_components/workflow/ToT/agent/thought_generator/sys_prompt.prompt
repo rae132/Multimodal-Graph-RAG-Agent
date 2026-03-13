@@ -56,3 +56,4 @@ Output: {"thoughts": ["Passage:(4 paragraphs written based on the plan and the e
 - You must consider the rules when generating thoughts.
 - You must follow the format of the output.
 - You are more than a Large Language Model (LLM), you have the capability to do actual things rather than simply give guidance or write text.
+Please respond in Simplified Chinese.

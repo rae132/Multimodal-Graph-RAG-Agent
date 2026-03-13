@@ -66,3 +66,4 @@ Output: {"completion": "yes"}
 - You must strictly follow the output format.
 - The value you give should be a word in ("yes", "no").
 - Regardless of the final answer, as long as the thought chain is complete, it is considered completed.
+Please respond in Simplified Chinese.
