@@ -61,7 +61,25 @@ class CoTReasoning( BaseLLMBackend, BaseWorker ):
         prompt_tokens = res[ 'usage' ][ 'prompt_tokens' ]
         completion_tokens = res[ 'usage' ][ 'completion_tokens' ]
         last_output = res[ "choices" ][ 0 ][ "message" ][ "content" ]
-        question = body.get( 'messages' )[ 0 ][ 'content' ][ 0 ][ 'text' ]
+        
+        # Robust question extraction from body
+        try:
+            if isinstance(body, dict):
+                messages = body.get('messages', [])
+            else:
+                messages = body
+                
+            if messages:
+                last_msg_content = messages[-1].get('content', '')
+                if isinstance(last_msg_content, list):
+                    # Find the first text content
+                    question = next((c.get('text', '') for c in last_msg_content if isinstance(c, dict) and c.get('type') == 'text'), query)
+                else:
+                    question = last_msg_content
+            else:
+                question = query
+        except Exception:
+            question = query
 
         self.callback.send_answer(self.workflow_instance_id, msg=last_output)
         return { 'id': id, 'question': question, 'last_output': last_output, 'prompt_tokens': prompt_tokens, "completion_tokens": completion_tokens}

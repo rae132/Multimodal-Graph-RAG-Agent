@@ -1,0 +1,42 @@
+conductor_config:
+  name: Configuration
+  base_url:
+    value: http://localhost:8080
+    env_var: CONDUCTOR_SERVER_URL
+aaas_config:
+  name: AaasConfig
+  base_url:
+    value: http://localhost:30002
+    env_var: AAAS_TASK_SERVER_URL
+connectors:
+  redis_stream_client:
+    name: RedisConnector
+    host:
+      value: localhost
+      env_var: HOST
+    port:
+      value: 6379
+      env_var: PORT
+    use_lite:
+      value: true
+      env_var: USE_LITE
+  redis_stm_client:
+    name: RedisConnector
+    host:
+      value: localhost
+      env_var: HOST
+    port:
+      value: 6379
+      env_var: PORT
+    use_lite:
+      value: true
+      env_var: USE_LITE
+components:
+  AppCallback:
+    name: AppCallback
+  AppInput:
+    name: AppInput
+  SharedMemSTM:
+    name: SharedMemSTM
+  RedisSTM:
+    name: RedisSTM

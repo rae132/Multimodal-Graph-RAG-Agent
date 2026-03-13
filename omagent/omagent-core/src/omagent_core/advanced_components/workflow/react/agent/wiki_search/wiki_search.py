@@ -23,9 +23,12 @@ class WikiSearch(BaseWorker):
     
     wiki_searcher: WikipediaSearcher = Field(default_factory=WikipediaSearcher)
 
-    def _run(self, action_output: str, *args, **kwargs):
+    def _run(self, action_output: str = None, *args, **kwargs):
         """Execute search or lookup based on action output"""
         try:
+            if action_output is None:
+                return {'output': 'No action provided'}
+            
             # Get context and other states from STM
             state = self.stm(self.workflow_instance_id)
             context = state.get('context', '')

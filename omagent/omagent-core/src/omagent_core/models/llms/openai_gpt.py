@@ -109,12 +109,15 @@ class OpenaiGPTLLM(BaseLLM):
         if self.api_key is None or self.api_key == "":
             raise ValueError("api_key is required")
 
-        messages = self._msg2req(records)
+        body = self._msg2req(records)
+        model_id = self.model_id
+        if "/" in model_id:
+            model_id = model_id.split("/")[-1]
 
         if self.vision:
             res = self.client.chat.completions.create(
-                model=self.model_id,
-                messages=messages,
+                model=model_id,
+                messages=body["messages"],
                 temperature=kwargs.get("temperature", self.temperature),
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 stream=kwargs.get("stream", self.stream),
@@ -131,8 +134,8 @@ class OpenaiGPTLLM(BaseLLM):
             )
         else:
             res = self.client.chat.completions.create(
-                model=self.model_id,
-                messages=messages,
+                model=model_id,
+                messages=body["messages"],
                 temperature=kwargs.get("temperature", self.temperature),
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 response_format=kwargs.get("response_format", self.response_format),
@@ -160,12 +163,15 @@ class OpenaiGPTLLM(BaseLLM):
         if self.api_key is None or self.api_key == "":
             raise ValueError("api_key is required")
 
-        messages = self._msg2req(records)
+        body = self._msg2req(records)
+        model_id = self.model_id
+        if "/" in model_id:
+            model_id = model_id.split("/")[-1]
 
         if self.vision:
             res = await self.aclient.chat.completions.create(
-                model=self.model_id,
-                messages=messages,
+                model=model_id,
+                messages=body["messages"],
                 temperature=kwargs.get("temperature", self.temperature),
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 n=kwargs.get("n", self.n),
@@ -181,8 +187,8 @@ class OpenaiGPTLLM(BaseLLM):
             )
         else:
             res = await self.aclient.chat.completions.create(
-                model=self.model_id,
-                messages=messages,
+                model=model_id,
+                messages=body["messages"],
                 temperature=kwargs.get("temperature", self.temperature),
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 response_format=kwargs.get("response_format", self.response_format),
@@ -238,7 +244,10 @@ class OpenaiGPTLLM(BaseLLM):
             messages = processed_messages
         if self.use_default_sys_prompt:
             messages = [self._generate_default_sys_prompt()] + messages
-        return messages
+        return {
+            "model": self.model_id,
+            "messages": messages,
+        }
 
     def _generate_default_sys_prompt(self) -> Dict:
         loc = self._get_location()

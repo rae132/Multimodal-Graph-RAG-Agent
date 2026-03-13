@@ -54,14 +54,19 @@ class RAGAnythingTool(BaseTool):
             pass
         
         # --- 多模型路由配置 ---
-        chat_model = os.environ.get("CHAT_MODEL_ID", os.environ.get("CUSTOM_MODEL_ID", "openai/gpt-4o"))
+        def _ensure_prefix(m):
+            if m and "/" not in m:
+                return f"openai/{m}"
+            return m
+
+        chat_model = _ensure_prefix(os.environ.get("CHAT_MODEL_ID", os.environ.get("CUSTOM_MODEL_ID", "openai/gpt-4o")))
         chat_api_key = os.environ.get("CHAT_API_KEY", os.environ.get("OPENAI_API_KEY"))
         chat_base_url = os.environ.get("CHAT_API_BASE", os.environ.get("OPENAI_API_BASE"))
         
-        extract_model = os.environ.get("EXTRACT_MODEL_ID", chat_model)
-        vision_model = os.environ.get("VISION_MODEL_ID", chat_model)
+        extract_model = _ensure_prefix(os.environ.get("EXTRACT_MODEL_ID", chat_model))
+        vision_model = _ensure_prefix(os.environ.get("VISION_MODEL_ID", chat_model))
         
-        embed_model = os.environ.get("EMBED_MODEL_ID", "openai/text-embedding-3-large")
+        embed_model = _ensure_prefix(os.environ.get("EMBED_MODEL_ID", "openai/text-embedding-3-large"))
         embed_api_key = os.environ.get("EMBED_API_KEY", chat_api_key)
         embed_base_url = os.environ.get("EMBED_API_BASE", chat_base_url)
         
@@ -251,6 +256,15 @@ class RAGAnythingTool(BaseTool):
         finally:
             if new_loop_created:
                 try:
+                    # 尝试清理挂起的任务以减少报错
+                    pending = asyncio.all_tasks(loop)
+                    for task in pending:
+                        task.cancel()
+                    
+                    # 再次运行循环以允许取消信号传播
+                    if pending:
+                        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    
                     asyncio.set_event_loop(None)
                     loop.close()
                 except Exception:

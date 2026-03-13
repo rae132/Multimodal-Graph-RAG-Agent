@@ -1,5 +1,8 @@
 # Import required modules and components
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from omagent_core.utils.container import container
 from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
 from omagent_core.engine.workflow.task.simple_task import simple_task

@@ -1,0 +1,118 @@
+- name: CoTReasoning
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: ThoughtGenerator
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: StateEvaluator
+  llm: ${sub|gpt}
+  params:
+    evaluation_type: value
+  concurrency: 5
+
+- name: SearchAlgorithm
+  llm: ${sub|gpt}
+  params:
+    search_type: bfs
+    max_depth: 3
+    max_steps: 10
+    b: 3
+    use_llm_completion: true
+  concurrency: 5
+
+- name: ThoughtDecomposition
+  params:
+    search_type: bfs
+    max_depth: 3
+    max_steps: 10
+    b: 3
+
+- name: ThinkAction
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: Think
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: Action
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: WikiSearch
+  concurrency: 5
+
+- name: ReactOutput
+  concurrency: 5
+
+- name: SCCoTReasoning
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: Reflect
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: TaskDivider
+  llm: ${sub|gpt}
+  tool_manager:
+    llm: ${sub|gpt}
+    tools: []
+  concurrency: 5
+
+- name: TaskConqueror
+  llm: ${sub|gpt}
+  tool_manager:
+    llm: ${sub|gpt}
+    tools: []
+  concurrency: 5
+
+- name: TaskRescue
+  llm: ${sub|gpt}
+  tool_manager:
+    llm: ${sub|gpt}
+    tools: []
+  concurrency: 5
+
+- name: ConstructDncPayload
+  concurrency: 5
+
+- name: StructureUpdate
+  concurrency: 5
+
+- name: TaskExitMonitor
+  concurrency: 5
+
+- name: Selection
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: Expansion
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: SimulationPreProcess
+  concurrency: 5
+
+- name: SimulationPostProcess
+  concurrency: 5
+
+- name: BackPropagation
+  concurrency: 5
+
+- name: MCTSCompletionCheck
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: OutputInterface
+  concurrency: 5
+
+- name: PoTExecutor
+  llm: ${sub|gpt}
+  concurrency: 5
+
+- name: ChoiceExtractor
+  llm: ${sub|gpt}
+  concurrency: 5

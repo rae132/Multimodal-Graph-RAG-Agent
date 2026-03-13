@@ -80,11 +80,11 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
                 if not ans:
                     return None
                 else:
-                    # For sequences, try to convert first element to float
+                    # Try to convert entire list to float if possible, otherwise keep as list of strings/objects
                     try:
-                        ans = float(ans[0])
+                        return [float(x) for x in ans]
                     except Exception:
-                        ans = str(ans[0])
+                        return [str(x) for x in ans]
             else:
                 # For all other types, attempt float conversion
                 try:

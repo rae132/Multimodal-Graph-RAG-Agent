@@ -88,9 +88,15 @@ def prep_config(sub_config: dict | list, config: dict, forbid_keys: list):
                     if env_value:
                         sub_config[key] = env_value
                     elif not env_value and default_value:
-                        sub_config[key] = default_value.strip()
-                        if sub_config[key] == "null" or sub_config[key] == "~":
-                            sub_config[key] = None
+                        # Try to see if default_value itself is another env var
+                        default_env_key = default_value.strip()
+                        default_env_value = os.getenv(default_env_key)
+                        if default_env_value:
+                            sub_config[key] = default_env_value
+                        else:
+                            sub_config[key] = default_env_key
+                            if sub_config[key] == "null" or sub_config[key] == "~":
+                                sub_config[key] = None
                     else:
                         raise ValueError(
                             f"Environmental variable {env_key} need to be set."

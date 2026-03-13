@@ -78,7 +78,8 @@ class Action(BaseLLMBackend, BaseWorker):
         new_context = f"{context}\nAction {current_step}: {output}"
         state.update({
             'context': new_context,
-            'token_usage': token_usage
+            'token_usage': token_usage,
+            'step_number': current_step + 1  # Increment step number
         })
         
         return {

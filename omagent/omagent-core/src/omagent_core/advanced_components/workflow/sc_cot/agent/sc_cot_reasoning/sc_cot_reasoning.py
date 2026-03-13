@@ -87,7 +87,10 @@ class SCCoTReasoning( BaseLLMBackend, BaseWorker ):
             ]
 
         all_results = []  # 存储所有运行结果
-        formatted_query = self.example.replace("{{query}}", query)
+        if self.example:
+            formatted_query = self.example.replace("{{query}}", query)
+        else:
+            formatted_query = query
         
         for run_idx in range(self.num):
             print(f"Running iteration {run_idx + 1}/{self.num}")
@@ -120,6 +123,8 @@ class SCCoTReasoning( BaseLLMBackend, BaseWorker ):
         all_final_answers = [result['final_answer'] for result in all_results]
         # 获取出现最多的答案
         most_common_answer = self.get_most_common_answer(all_final_answers)
+        if most_common_answer is None:
+            most_common_answer = "No consistent answer could be extracted from the reasoning paths."
 
         # 统计答案分布
         answer_distribution = Counter(all_final_answers)

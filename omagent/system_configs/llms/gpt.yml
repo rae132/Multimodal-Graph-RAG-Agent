@@ -1,0 +1,7 @@
+name: OpenaiGPTLLM
+model_id: ${env| CHAT_MODEL_ID, gpt-4o}
+api_key: ${env| CHAT_API_KEY, openai_api_key}
+endpoint: ${env| CHAT_API_BASE, https://api.openai.com/v1}
+temperature: 0
+vision: true
+use_default_sys_prompt: false

@@ -24,6 +24,7 @@ class SearchAlgorithm(BaseWorker, BaseLLMBackend):
     """
     
     llm: OpenaiGPTLLM
+    use_llm_completion: bool = True
     
     prompts: List[PromptTemplate] = Field(
         default=[
