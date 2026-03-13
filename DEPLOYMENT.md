@@ -2,17 +2,17 @@
 
 本项目的核心目标是结合 **OmAgent** 的多模态工作流编排能力与 **RAG-Anything (基于 LightRAG)** 的双引擎检索能力，构建一个能够理解图片、解析复杂 PDF 文档，并基于“知识图谱 + 向量语义”进行高维度逻辑问答的终极智能助手。
 
-经过底层的深度重构，该系统已完美适配**通义千问 (Qwen)** 等兼容 OpenAI 协议的国内大模型，彻底拔除了底层框架对单一平台的硬编码束缚。
+经过底层的深度重构，该系统已接入 **Litellm**，完美适配**所有兼容 OpenAI 协议的大模型（如 OpenAI、Claude、DeepSeek、Qwen、本地 Ollama/vLLM）**，彻底拔除了底层框架对单一平台的硬编码束缚，实现完全灵活的多模型路由。
 
 ---
 
 ## 1. 核心架构与重构亮点
 
-1. **Graph + Vector 双引擎检索 (`Mix` 模式)**：不仅使用 FAISS 进行传统的 1024 维语义切片（Chunk）检索，更通过 NetworkX 构建并检索实体关系网（Entity-Relation Graph）。最终融合两种上下文，使智能体兼具“细节检索”与“逻辑推理”能力。
-2. **FAISS 纯本地工业级向量库**：抛弃了存在 1536 维度硬编码缺陷的默认简易库，全面接入 Facebook 开源的极速本地内存向量引擎 **FAISS**，让 Qwen 等非 1536 维度的嵌入模型可以 100% 满血运行。
-3. **图谱检索与生成解耦**：将 RAG 检索到的纯净结构化上下文（Context）直接透传给外层 OmAgent 工作流，由前端主控的 Qwen 智能体进行拟人化、高质量的中文回答，省去了冗余的中间总结损耗。
-4. **全异步防死锁流水线**：重写了 Worker 的执行逻辑，将模型生成升级为真异步 `agenerate`，彻底消灭了 Python `asyncio` 与同步 `httpx` 在子线程中引发的死锁悬案。
-5. **Mac 兼容性光环**：系统入口自动注入 `KMP_DUPLICATE_LIB_OK=TRUE`，优雅规避了 macOS 系统下常见的 OpenMP 资源抢占崩溃问题。
+1. **统一模型路由与按需解耦**：底层通过 `litellm` 代理所有网络请求。您可以为**聊天问答、图谱抽取、多模态视觉、向量嵌入**等四大核心任务自由指派不同的模型（例如：用 GPT-4o 聊天，用便宜的 DeepSeek 进行大规模图谱抽取，极大降低建库成本）。
+2. **嵌入维度自适应 (Auto-Detect)**：不再需要痛苦地在文档中翻找 `EMBED_DIM`。系统会在启动时发送探测请求给您的 Embedding 模型，自动计算并配置真实的输出维度给底层向量库。
+3. **Graph + Vector 双引擎检索 (`Mix` 模式)**：不仅使用 FAISS 进行传统的语义切片检索，更通过 NetworkX 构建并检索实体关系网。最终融合两种上下文，使智能体兼具“细节检索”与“逻辑推理”能力。
+4. **FAISS 纯本地工业级向量库**：全面接入 Facebook 开源的极速本地内存向量引擎 **FAISS**，让非 1536 维度的嵌入模型（如 Qwen 或 BGE）也能 100% 满血运行。
+5. **全异步防死锁流水线**：重写了 Worker 的执行逻辑，将模型生成升级为真异步 `agenerate`，彻底消灭了 Python `asyncio` 与同步 `httpx` 在子线程中引发的死锁悬案。
 
 ---
 
@@ -48,34 +48,44 @@ pip install -e .
 
 ## 3. 系统配置 (使用 .env 文件)
 
-系统的灵魂在于配置的解耦。请在 `omagent/examples/rag_multimodal_agent/.env` 目录下创建或修改该文件：
+系统的灵魂在于配置的解耦。请在 `omagent/examples/rag_multimodal_agent/.env` 目录下创建或修改该文件，现在您可以为不同任务自由组合模型（以下为组合搭配示例）：
 
 ```ini
-# --- 1. 聊天生成模型配置 (Chat LLM, 负责最终回答您的提问) ---
-CHAT_API_KEY=您的_API_KEY
+# ==========================================
+#  多模型路由配置 (Litellm 统一接口)
+# ==========================================
+
+# 1. 主聊天与推理模型 (必填)
+CHAT_API_KEY=sk-your-api-key
 CHAT_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
-CUSTOM_MODEL_ID=qwen-plus
+CHAT_MODEL_ID=openai/qwen-plus  # 注意：必须带有对应的厂商前缀 (如 openai/, anthropic/ 等)
 
-# --- 2. 嵌入检索模型配置 (Embedding Model, 负责把文档变成向量) ---
-# (您可以将其配置为与聊天模型不同的平台或本地服务)
-EMBED_API_KEY=您的_API_KEY
+# 2. 知识图谱抽取模型 (选填)
+# 如果不填，默认使用 CHAT_MODEL_ID。推荐使用专门的语言模型降低建库成本。
+# EXTRACT_MODEL_ID=openai/deepseek-chat
+
+# 3. 多模态视觉模型 (选填)
+# 用于支持图片理解
+VISION_MODEL_ID=openai/qwen-vl-plus
+
+# 4. 嵌入模型与维度 (必填)
+# ⚠️ 注意：更换嵌入模型后，必须删除 rag_storage 目录重新构建索引！
+EMBED_API_KEY=sk-your-api-key
 EMBED_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
-EMBED_MODEL_ID=text-embedding-v3
-EMBED_DIM=1024  # [关键] 必须准确填入新模型的真实输出维度 (Qwen 为 1024)
+EMBED_MODEL_ID=openai/text-embedding-v3
+# 设置为 0 开启自动探测维度。如果探测失败或网络受限，可手动填写固定值 (如 1024 或 3072)
+EMBED_DIM=0
 
-# --- 3. RAG 引擎与解析器配置 ---
+# --- RAG & OmAgent 运行配置 ---
 RAG_WORKING_DIR=./rag_storage
 PARSER=mineru
 PARSE_METHOD=auto
-
-# --- 4. OmAgent 运行层配置 ---
 OMAGENT_MODE=lite
-# 兼容映射 (请与上面的 CHAT 配置保持一致)
-custom_openai_key=您的_API_KEY
+
+# --- 用户对话模型 ID 设置 (映射到 gpt.yml) ---
+custom_openai_key=sk-your-api-key
 custom_openai_endpoint=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
-
-*进阶技巧：若需极强的识图能力，可将 `CUSTOM_MODEL_ID` 更改为 `qwen-vl-max`。*
 
 ---
 
@@ -107,9 +117,13 @@ python run_webpage.py
 
 ## 5. 运维与排障 (FAQ)
 
+* **网页端多次提问或上传时卡死，终端提示 `bound to a different event loop`？**
+  这是因为 Python 3 的 `asyncio.Lock` 严禁跨事件循环借用。由于 OmAgent 是多线程调度工作流，我们在 `rag_anything.py` 的适配器中强行破解了 LightRAG 1.4.10 的全局单例锁缓存。请确保你在拉取代码后执行了最新的覆盖。如果偶尔复现，重启 `run_webpage.py` 即可。
+* **生成图谱时报错 `Object of type JsonKVStorage is not JSON serializable`？**
+  这是由于底层大模型网关 Litellm 试图序列化 LightRAG 的内部对象导致的。我们已经在适配层加入了 Kwargs 拦截清洗机制。
 * **更换嵌入模型或更改维度后报错？**
-  **极其重要**：如果改变了 `.env` 中的 `EMBED_DIM` 或模型，旧的 `rag_storage` 目录中的向量将无法对齐。请必须在启动前执行 `rm -rf rag_storage/` 和 `find . -name "vdb_*.json" -delete` 彻底清空旧库。
+  **极其重要**：一旦更改了 `EMBED_MODEL_ID` 或底层的 Embedding 维度，旧的 `rag_storage` 目录中的向量将发生严重的维度不匹配（Dimension Mismatch）致命错误。请必须在启动前执行 `rm -rf rag_storage/` 和 `find . -name "vdb_*.json" -delete` 彻底清空旧库并重新录入文档。
+* **什么是“自动探测维度”失败？**
+  如果在无网或者 API 接口严重限流的情况下启动系统，提示“Failed to auto-detect embedding dimension”，建议将 `.env` 文件中的 `EMBED_DIM` 从 `0` 显式更改为该模型正确的输出维度（如 Qwen 的 1024）。
 * **初次上传解析很慢？**
   若您上传的是 PDF，系统默认的 MinerU 解析器会在初次运行时下载深度学习权重（Fetching files...），视网络情况可能需要 1-3 分钟，之后将极其迅速。
-* **国内网络环境下卡死？**
-  代码已内置关闭 `geocoder` 位置请求（`use_default_sys_prompt: false`），杜绝了因 `ipinfo.io` 墙内访问超时引发的假死问题。

@@ -33,100 +33,167 @@ class RAGAnythingTool(BaseTool):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._rag_instance = None
         self._working_dir = os.path.abspath(os.environ.get("RAG_WORKING_DIR", "./rag_storage"))
         
     def _get_rag_instance(self):
-        if self._rag_instance is None:
-            std_logging.info(f"CRITICAL-INIT: Using FAISS Professional DB at {self._working_dir}")
-            
-            chat_api_key = os.environ.get("CHAT_API_KEY", os.environ.get("OPENAI_API_KEY"))
-            chat_base_url = os.environ.get("CHAT_API_BASE", os.environ.get("OPENAI_API_BASE"))
-            llm_model = os.environ.get("CUSTOM_MODEL_ID", "qwen-plus")
-            
-            embed_api_key = os.environ.get("EMBED_API_KEY", chat_api_key)
-            embed_base_url = os.environ.get("EMBED_API_BASE", chat_base_url)
-            embed_model = os.environ.get("EMBED_MODEL_ID", "text-embedding-v3")
-            
-            # Use raw unpadded dimension
-            embed_dim = int(os.environ.get("EMBED_DIM", "1024"))
-            
-            async def llm_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-                kwargs.pop("history", None)
-                return await openai_complete_if_cache(
-                    llm_model, prompt, system_prompt=system_prompt, history_messages=history_messages,
-                    base_url=chat_base_url, api_key=chat_api_key, **kwargs
-                )
-
-            # Vision function for Multimodal Queries
-            async def vision_func(prompt, system_prompt=None, image_data=None, messages=None, **kwargs):
-                from openai import AsyncOpenAI
-                client = AsyncOpenAI(api_key=chat_api_key, base_url=chat_base_url)
-                
-                if messages is not None:
-                    api_messages = messages
-                else:
-                    api_messages = []
-                    if system_prompt:
-                        api_messages.append({"role": "system", "content": system_prompt})
-                    
-                    user_content = [{"type": "text", "text": prompt}]
-                    if image_data:
-                        user_content.append({
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}
-                        })
-                    api_messages.append({"role": "user", "content": user_content})
-                
-                vision_model = llm_model if "vl" in llm_model.lower() else "qwen-vl-max"
-                
-                resp = await client.chat.completions.create(
-                    model=vision_model,
-                    messages=api_messages,
-                    temperature=0.0
-                )
-                return resp.choices[0].message.content
-
-            # RAW HTTP EMBEDDING FUNCTION
-            async def embed_func(texts: List[str]) -> np.ndarray:
-                url = f"{embed_base_url.rstrip('/')}/embeddings"
+        # We must NOT cache `self._rag_instance` across different `_run` calls because OmAgent 
+        # executes Workers in different threads/async loops. LightRAG internally uses 
+        # `asyncio.Lock()` which binds to the specific event loop active during its __init__.
+        # If we cache it, a new thread's loop will try to acquire the old loop's lock and crash.
+        std_logging.info(f"CRITICAL-INIT: Creating new RAG instance for current event loop at {self._working_dir}")
+        
+        # --- 强制重置 LightRAG 的全局锁缓存 ---
+        # LightRAG 1.4.10 会把第一次运行时的 asyncio.Lock 缓存在其全局变量中 (shared_storage.py)
+        # 这会导致跨线程 (多事件循环) 运行时触发 bound to a different event loop 错误。
+        try:
+            import lightrag.kg.shared_storage as ss
+            ss._initialized = False  # 破解：强行标记为未初始化
+            ss._storage_keyed_lock = None # 清空之前的 KeyedLock 实例
+            ss.initialize_share_data(1)  # 强制在当前线程的 event_loop 下重新创建所有锁
+        except ImportError:
+            pass
+        
+        # --- 多模型路由配置 ---
+        chat_model = os.environ.get("CHAT_MODEL_ID", os.environ.get("CUSTOM_MODEL_ID", "openai/gpt-4o"))
+        chat_api_key = os.environ.get("CHAT_API_KEY", os.environ.get("OPENAI_API_KEY"))
+        chat_base_url = os.environ.get("CHAT_API_BASE", os.environ.get("OPENAI_API_BASE"))
+        
+        extract_model = os.environ.get("EXTRACT_MODEL_ID", chat_model)
+        vision_model = os.environ.get("VISION_MODEL_ID", chat_model)
+        
+        embed_model = os.environ.get("EMBED_MODEL_ID", "openai/text-embedding-3-large")
+        embed_api_key = os.environ.get("EMBED_API_KEY", chat_api_key)
+        embed_base_url = os.environ.get("EMBED_API_BASE", chat_base_url)
+        
+        from litellm import acompletion, aembedding
+        
+        # --- 自动探测 Embedding 维度 (避免人工配置错误) ---
+        embed_dim = int(os.environ.get("EMBED_DIM", "0"))
+        if embed_dim <= 0:
+            std_logging.info(f"Auto-detecting embedding dimension for model '{embed_model}'...")
+            try:
+                import requests
+                # Use raw request for probing to bypass Litellm's default encoding_format insertion 
+                # which fails on some OpenAI-compatible endpoints like Aliyun DashScope.
+                probe_url = f"{embed_base_url.rstrip('/')}/embeddings"
                 headers = {
                     "Authorization": f"Bearer {embed_api_key}",
                     "Content-Type": "application/json"
                 }
-                payload = {"model": embed_model, "input": texts}
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url, headers=headers, json=payload) as resp:
-                        if resp.status != 200:
-                            err_text = await resp.text()
-                            raise ValueError(f"Embedding API failed: {err_text}")
-                        data = await resp.json()
-                        embeddings = [item['embedding'] for item in data['data']]
-                return np.array(embeddings, dtype=np.float32)
+                payload = {
+                    "model": embed_model.replace("openai/", "") if embed_model.startswith("openai/") else embed_model,
+                    "input": ["probe"]
+                }
+                probe_resp = requests.post(probe_url, headers=headers, json=payload, timeout=10)
+                if probe_resp.status_code == 200:
+                    probe_data = probe_resp.json()
+                    if "data" in probe_data and len(probe_data["data"]) > 0:
+                        embed_dim = len(probe_data["data"][0]["embedding"])
+                        std_logging.info(f"Successfully auto-detected embedding dimension: {embed_dim}")
+                    else:
+                        raise ValueError(f"Invalid response format: {probe_data}")
+                else:
+                    raise ValueError(f"HTTP {probe_resp.status_code}: {probe_resp.text}")
+            except Exception as e:
+                std_logging.warning(f"Failed to auto-detect embedding dimension: {e}. Falling back to default 1024.")
+                embed_dim = 1024
+        else:
+            std_logging.info(f"Using explicitly configured embedding dimension: {embed_dim}")
+
+        async def llm_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            kwargs.pop("history", None)
             
-            embedding_obj = EmbeddingFunc(
-                embedding_dim=embed_dim,
-                max_token_size=8192,
-                func=embed_func
-            )
+            # --- 清理 LightRAG 内部专用的 kwargs，防止被 Litellm 误当作 API 参数序列化报错 ---
+            kwargs.pop("hashing_kv", None)
+            kwargs.pop("openai_client_configs", None)
+            keyword_extraction = kwargs.pop("keyword_extraction", False)
+            if keyword_extraction:
+                # LightRAG keyword extraction needs a specific JSON response format if supported by the model
+                from lightrag.llm.openai import GPTKeywordExtractionFormat
+                kwargs["response_format"] = GPTKeywordExtractionFormat
 
-            lrag = LightRAG(
-                working_dir=self._working_dir,
-                llm_model_func=llm_func,
-                embedding_func=embedding_obj,
-                llm_model_name=llm_model,
-                vector_storage="FaissVectorDBStorage"
-            )
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.extend(history_messages)
+            messages.append({"role": "user", "content": prompt})
 
-            config = RAGAnythingConfig(
-                working_dir=self._working_dir,
-                parser=os.environ.get("PARSER", "mineru")
-            )
+            # --- 动态路由逻辑 ---
+            # LightRAG 在构建知识图谱时，系统提示词中通常会包含抽取实体和关系的指令
+            # 通过判断提示词内容，自动切换到专门的抽取模型 (如 DeepSeek 等更便宜或更擅长抽取的模型)
+            current_model = chat_model
+            if system_prompt and any(kw in system_prompt.lower() for kw in ["entity", "relationship", "graph", "extract", "抽取"]):
+                current_model = extract_model
 
-            self._rag_instance = RAGAnything(config=config, lightrag=lrag, vision_model_func=vision_func)
-            std_logging.info(f"SUCCESS: System armed with FAISS natively supporting {embed_dim} dimensions and Vision capabilities.")
+            resp = await acompletion(
+                model=current_model,
+                messages=messages,
+                api_key=chat_api_key,
+                api_base=chat_base_url,
+                **kwargs
+            )
+            return resp.choices[0].message.content
+
+        # Vision function for Multimodal Queries
+        async def vision_func(prompt, system_prompt=None, image_data=None, messages=None, **kwargs):
+            if messages is None:
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
                 
-        return self._rag_instance
+                user_content = [{"type": "text", "text": prompt}]
+                if image_data:
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}
+                    })
+                messages.append({"role": "user", "content": user_content})
+            
+            resp = await acompletion(
+                model=vision_model,
+                messages=messages,
+                api_key=chat_api_key,
+                api_base=chat_base_url,
+                temperature=0.0,
+                **kwargs
+            )
+            return resp.choices[0].message.content
+
+        # Litellm 统一的 EMBEDDING FUNCTION
+        async def embed_func(texts: List[str]) -> np.ndarray:
+            resp = await aembedding(
+                model=embed_model,
+                input=texts,
+                api_key=embed_api_key,
+                api_base=embed_base_url,
+                encoding_format="float" # 强制使用 float，解决阿里云等接口不支持 litellm 默认的 base64 编码问题
+            )
+            embeddings = [item['embedding'] for item in resp.data]
+            return np.array(embeddings, dtype=np.float32)
+        
+        embedding_obj = EmbeddingFunc(
+            embedding_dim=embed_dim,
+            max_token_size=8192,
+            func=embed_func
+        )
+
+        lrag = LightRAG(
+            working_dir=self._working_dir,
+            llm_model_func=llm_func,
+            embedding_func=embedding_obj,
+            llm_model_name=chat_model,
+            vector_storage="FaissVectorDBStorage"
+        )
+
+        config = RAGAnythingConfig(
+            working_dir=self._working_dir,
+            parser=os.environ.get("PARSER", "mineru")
+        )
+
+        rag_instance = RAGAnything(config=config, lightrag=lrag, vision_model_func=vision_func)
+        std_logging.info(f"SUCCESS: System armed with FAISS natively supporting {embed_dim} dimensions and Litellm Multi-Model Routing.")
+            
+        return rag_instance
 
     async def _ensure_init(self, rag):
         """Ensure LightRAG storages are initialized (locks, etc.) before any operation."""

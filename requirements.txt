@@ -26,6 +26,15 @@ pillow
 
 # --- 大模型调用与网络通信 ---
 openai
+litellm
+requests
 aiohttp
 httpx
 geocoder
+
+# --- 核心算法与数据处理 ---
+numpy
+lightrag-hku
+huggingface_hub
+tqdm
+
