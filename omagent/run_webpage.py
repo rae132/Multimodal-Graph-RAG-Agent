@@ -6,11 +6,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 import gradio as gr
 import networkx as nx
+from pyvis.network import Network
 
 # --- 环境初始化 ---
-load_dotenv()
+CURRENT_PATH = Path(__file__).parent.absolute()
+load_dotenv(CURRENT_PATH / ".env", override=False)
 os.environ["OMAGENT_MODE"] = "lite"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(CURRENT_PATH.parent / "tiktoken_cache"))
 
 # 屏蔽繁琐日志
 std_logging.getLogger("asyncio").setLevel(std_logging.CRITICAL)
@@ -28,7 +31,6 @@ from omagent_core.utils.logger import logging
 import system_workers
 
 logging.init_logger("omagent", "omagent", level="INFO")
-CURRENT_PATH = Path(__file__).parent.absolute()
 os.environ["RAG_WORKING_DIR"] = str(CURRENT_PATH / "rag_storage")
 
 # --- RAG 工具与 UI 辅助函数 ---
@@ -80,27 +82,25 @@ def get_kg_visualization_html():
     
     try:
         G = nx.read_graphml(kg_path)
-        nodes, edges = [], []
+        net = Network(height="600px", width="100%", directed=True, cdn_resources="in_line")
+        net.barnes_hut()
+
         for node_id, data in G.nodes(data=True):
             label = str(node_id).replace('"', "'")
             title = str(data.get("description", data)).replace('"', "'")
-            nodes.append({"id": node_id, "label": label[:15] + "..." if len(label) > 15 else label, "title": title})
+            net.add_node(
+                n_id=node_id,
+                label=label[:15] + "..." if len(label) > 15 else label,
+                title=title,
+                shape="dot",
+                size=16,
+            )
             
         for u, v, data in G.edges(data=True):
             label = str(data.get("relationship", data.get("weight", ""))).replace('"', "'")
-            edges.append({"from": u, "to": v, "label": label[:10] + "..." if len(label) > 10 else label})
-            
-        nodes_json, edges_json = json.dumps(nodes), json.dumps(edges)
-        html_content = f"""
-        <html>
-        <head><script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script></head>
-        <body><div id="mynetwork" style="width:100%;height:100vh;"></div>
-        <script type="text/javascript">
-            var data = {{ nodes: new vis.DataSet({nodes_json}), edges: new vis.DataSet({edges_json}) }};
-            var options = {{ nodes: {{ shape: 'dot', size: 16 }}, physics: {{ stabilization: true }} }};
-            new vis.Network(document.getElementById('mynetwork'), data, options);
-        </script></body></html>
-        """
+            net.add_edge(u, v, label=label[:10] + "..." if len(label) > 10 else label)
+
+        html_content = net.generate_html(notebook=False)
         import html
         return f'<iframe srcdoc="{html.escape(html_content)}" style="width:100%;height:600px;border:none;"></iframe>'
     except Exception as e:
@@ -192,7 +192,9 @@ class UnifiedWebpageClient(WebpageClient):
                     kg_html = gr.HTML(get_kg_visualization_html)
                     refresh_kg.click(get_kg_visualization_html, outputs=kg_html)
             
-            demo.launch()
+            server_name = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
+            server_port = int(os.environ.get("GRADIO_SERVER_PORT", "7860"))
+            demo.launch(server_name=server_name, server_port=server_port)
 
 # --- 工作流构建 (从 start_system_cli.py 移植) ---
 def build_workflow():

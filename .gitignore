@@ -31,3 +31,7 @@ interview.md
 .idea/
 .DS_Store
 interview.md
+
+# Docker 构建产物
+dist/
+.docker-buildx-config/
